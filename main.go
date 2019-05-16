@@ -1,7 +1,6 @@
 package main
 
 import (
-	
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	
 )
 
 type Product struct {
@@ -21,9 +19,14 @@ type episode struct {
 	season        float64
 	episodenumber float64
 	name          string
+	SeriesName    string
 }
 type season struct {
 	Data []seasoninfo `json:"data"`
+}
+type database struct {
+	allseries  []episode `json: "allseries"`
+	SeasonName string
 }
 type seasoninfo struct {
 	Aliases    []string
@@ -39,20 +42,34 @@ type seasoninfo struct {
 
 func main() {
 
-	
-	tk:=token()
+	tk := token()
 	//
 	//fmt.Println(similar(name))
-	path:=os.Args[1:][0]
+	path := os.Args[1:][0]
 	name := files(path)
 	fmt.Println(name)
-	seriesname:=similar(name)
-	series := seriesid(seriesname[0],tk)
-	for _, i := range series.Data {
-		fmt.Println(i.Id)
+	var allepisodesdata []database
+	var allepisodes []episode
+	seriesname := similar(name)
+	fmt.Println(seriesname)
+	for _, j := range seriesname {
+		newpath := path + "/" + j
+		if _, err := os.Stat(newpath); os.IsNotExist(err) {
+			os.Mkdir(newpath, os.ModePerm)
+
+		}
 	}
-	allepisodes := episodes(series.Data[0].Id, tk)
-	rename(name, path, allepisodes)
+	for _, name := range seriesname {
+		series := seriesid(name, tk)
+		for _, i := range series.Data {
+			fmt.Println(i.Id)
+		}
+
+		allepisodes = episodes(series.Data[0].Id, tk, series.Data[0].SeriesName)
+		allepisodesdata = append(allepisodesdata, database{allepisodes, series.Data[0].SeriesName})
+	}
+
+	rename(name, path, allepisodesdata)
 }
 
 func files(path string) []string {
@@ -63,7 +80,8 @@ func files(path string) []string {
 	}
 	//fmt.Println(file)
 	for i, f := range file {
-		if len(strings.Split(f.Name(), ".")) != 1 {
+		IsNotFolder, _ := IsNotDirectory(path + "/" + f.Name())
+		if len(strings.Split(f.Name(), ".")) != 1 && IsNotFolder && strings.Split(f.Name(), ".")[len(strings.Split(f.Name(), "."))-1] != "txt" && strings.Split(f.Name(), ".")[len(strings.Split(f.Name(), "."))-1] != "html" {
 			//if strings.Split(f.Name(),".")[len(strings.Split(f.Name(),"."))-1]!="srt"{
 			names = append(names, f.Name())
 			fmt.Println(i, f.Name())
@@ -76,23 +94,19 @@ func files(path string) []string {
 
 func similar(names []string) []string {
 	series := []string{}
-	re := regexp.MustCompile("[0-9]+")
-	for i, _ := range names {
-		if contains(series, re.Split(names[i], -1)[0][:len(re.Split(names[i], -1)[0])-1]) == false {
 
-			series = append(series, re.Split(names[i], -1)[0][:len(re.Split(names[i], -1)[0])-1])
+	for i, _ := range names {
+		if contains(series, seriesName(names[i])) == false {
+
+			series = append(series, seriesName(names[i]))
 		}
 	}
 	//fmt.Println(series)
-	temp := []string{}
-	final := []string{}
-	for _, name := range series {
-		temp = strings.Split(name, ".")
-		final = append(final, strings.Join(temp[:], " "))
-	}
+
 	//fmt.Println(final)
-	//fmt.Println(series)
-	return final
+	fmt.Println(series)
+	return series
+	//return final
 }
 func contains(arr []string, str string) bool {
 	for _, a := range arr {
@@ -125,7 +139,7 @@ func seriesid(name string, token string) season {
 
 }
 
-func episodes(seriesid int, token string) []episode {
+func episodes(seriesid int, token string, SeriesName string) []episode {
 	url := fmt.Sprintf("https://api.thetvdb.com/series/%d/episodes", seriesid)
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Add("Accept", "application/json")
@@ -143,7 +157,7 @@ func episodes(seriesid int, token string) []episode {
 		name := j.(map[string]interface{})["episodeName"].(string)
 		season := j.(map[string]interface{})["airedSeason"].(float64)
 		episodenumber := j.(map[string]interface{})["airedEpisodeNumber"].(float64)
-		allepisodes = append(allepisodes, episode{season, episodenumber, name})
+		allepisodes = append(allepisodes, episode{season, episodenumber, name, SeriesName})
 	}
 
 	if int(result["links"].(map[string]interface{})["last"].(float64)) > 1 {
@@ -163,15 +177,15 @@ func episodes(seriesid int, token string) []episode {
 				name := j.(map[string]interface{})["episodeName"].(string)
 				season := j.(map[string]interface{})["airedSeason"].(float64)
 				episodenumber := j.(map[string]interface{})["airedEpisodeNumber"].(float64)
-				allepisodes = append(allepisodes, episode{season, episodenumber, name})
+				allepisodes = append(allepisodes, episode{season, episodenumber, name, seriesName(SeriesName)})
 			}
 		}
 
 	}
-	fmt.Println(allepisodes)
+	//fmt.Println(allepisodes)
 	return allepisodes
 }
-func rename(names []string, path string, allepisodes []episode) {
+func rename(names []string, path string, allepisodesdata []database) {
 	oldname := make([]episode, 0)
 	re := regexp.MustCompile("([a-zA-Z]+)")
 	for _, name := range names {
@@ -181,7 +195,7 @@ func rename(names []string, path string, allepisodes []episode) {
 		fmt.Println(txt, 1)
 		counter := 0
 		split := re.Split(txt, -1)
-		fmt.Println(split, len(split))
+		//fmt.Println(split, len(split))
 		var data []int
 
 		for _, j := range split {
@@ -202,6 +216,7 @@ func rename(names []string, path string, allepisodes []episode) {
 					}
 				} else {
 					b := strings.Split(k, ".")
+
 					for _, i := range b {
 						a, err := strconv.Atoi(i)
 						if err == nil {
@@ -210,10 +225,26 @@ func rename(names []string, path string, allepisodes []episode) {
 							if counter >= 2 {
 								break
 							}
+							fmt.Println(b, k, data, i)
 
 						}
 
 					}
+					b = strings.Split(k, "_")
+					for _, i := range b {
+						a, err := strconv.Atoi(i)
+						if err == nil {
+							data = append(data, a)
+							counter = counter + 1
+							if counter >= 2 {
+								break
+							}
+							fmt.Println(b, k, data, i)
+
+						}
+
+					}
+					//fmt.Println(data)
 					if counter >= 2 {
 						break
 					}
@@ -224,62 +255,75 @@ func rename(names []string, path string, allepisodes []episode) {
 			}
 
 		}
-		fmt.Println(data)
-		oldname = append(oldname, episode{float64(data[0]), float64(data[1]), name})
+		fmt.Println(seriesName(name), data)
+		oldname = append(oldname, episode{float64(data[0]), float64(data[1]), name, seriesName(name)})
 
 	}
-	fmt.Println(oldname)
-	var temppath string
-	temppath=path + fmt.Sprintf("/S%d", int(oldname[0].season))
-	for _, j := range oldname {
-		var newpath string
-		if int(j.season) > 9 {
-			newpath = path + fmt.Sprintf("/S%d", int(j.season))
-		} else {
-			newpath = path + fmt.Sprintf("/S0%d", int(j.season))
-		}
-		if temppath!=newpath{
-		if _, err := os.Stat(newpath); os.IsNotExist(err) {
-			os.Mkdir(newpath, os.ModePerm)
-		}
-		temppath=newpath
-	}
-		
 
-	}
+	var finalpath string
 	for _, j := range oldname {
 
 		//if exists(path+fmt.Sprintf("s%d",int(j.season))){
-		for _, k := range allepisodes {
-			
-			if k.season == j.season && k.episodenumber == j.episodenumber {
-				ext:=strings.Split(j.name,".")[len(strings.Split(j.name,"."))-1]
-				if int(j.season) > 9 {
-					if int(j.episodenumber) > 9 {
-						fmt.Println(path+"/"+j.name, path+fmt.Sprintf("/S%d/E%d-%s", int(j.season), int(j.episodenumber), k.name))
-						os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S%d/E%d-%s.%s", int(j.season), int(j.episodenumber), k.name,ext))
+		for _, episodedata := range allepisodesdata {
+
+			if j.SeriesName == episodedata.SeasonName {
+
+				var temppath string
+				temppath = path + "/" + j.SeriesName + "/" + fmt.Sprintf("/S%d", int(oldname[0].season))
+				for _, j := range oldname {
+					var newpath string
+					if int(j.season) > 9 {
+						newpath = path + "/" + j.SeriesName + "/" + fmt.Sprintf("/S%d", int(j.season))
 					} else {
-						fmt.Println(path+"/"+j.name, path+fmt.Sprintf("/S%d/E0%d-%s", int(j.season), int(j.episodenumber), k.name))
-						os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S%d/E0%d-%s.%s", int(j.season), int(j.episodenumber), k.name,ext))
+						newpath = path + "/" + j.SeriesName + "/" + fmt.Sprintf("/S0%d", int(j.season))
 					}
-				} else {
-					if int(j.episodenumber) > 9 {
-						//temp:=strings.Split(k.name,"?")
-						//l:=strings.Join(temp[:], "")
-						l:=k.name
-						fmt.Println(path+j.name, path+fmt.Sprintf("/S0%d/E%d-%s", int(j.season), int(j.episodenumber), l))
-						os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S0%d/E%d-%s.%s", int(j.season), int(j.episodenumber), l,ext))
-					} else {
-						//temp:=strings.Split(k.name,"?")
-						//l:=strings.Join(temp[:], "")
-						l:=k.name
-						fmt.Println(path+"/"+j.name, path+fmt.Sprintf("/S0%d/E0%d-%s", int(j.season), int(j.episodenumber),l))
-						os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S0%d/E0%d-%s.%s", int(j.season), int(j.episodenumber),l,ext))
+					if temppath != newpath {
+						if _, err := os.Stat(newpath); os.IsNotExist(err) {
+							os.Mkdir(newpath, os.ModePerm)
+						}
+						temppath = newpath
 					}
+
 				}
-				//}
+
+				for _, k := range episodedata.allseries {
+					if k.season == j.season && k.episodenumber == j.episodenumber {
+						ext := strings.Split(j.name, ".")[len(strings.Split(j.name, "."))-1]
+						if int(j.season) > 9 {
+							if int(j.episodenumber) > 9 {
+								//fmt.Println(path+"/"+j.name, path+fmt.Sprintf("/S%d/E%d-%s", int(j.season), int(j.episodenumber), k.name))
+								finalpath = fmt.Sprintf("/S%d/E%d-%s.%s", int(j.season), int(j.episodenumber), k.name, ext)
+								//os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S%d/E%d-%s.%s", int(j.season), int(j.episodenumber), k.name, ext))
+							} else {
+								//fmt.Println(path+"/"+j.name, path+fmt.Sprintf("/S%d/E0%d-%s", int(j.season), int(j.episodenumber), k.name))
+								finalpath = fmt.Sprintf("/S%d/E0%d-%s.%s", int(j.season), int(j.episodenumber), k.name, ext)
+								//os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S%d/E0%d-%s.%s", int(j.season), int(j.episodenumber), k.name, ext))
+							}
+						} else {
+							if int(j.episodenumber) > 9 {
+								//temp:=strings.Split(k.name,"?")
+								//l:=strings.Join(temp[:], "")
+								l := k.name
+								//fmt.Println(path+j.name, path+fmt.Sprintf("/S0%d/E%d-%s", int(j.season), int(j.episodenumber), l))
+								finalpath = fmt.Sprintf("/S0%d/E%d-%s.%s", int(j.season), int(j.episodenumber), l, ext)
+								//os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S0%d/E%d-%s.%s", int(j.season), int(j.episodenumber), l, ext))
+							} else {
+								//temp:=strings.Split(k.name,"?")
+								//l:=strings.Join(temp[:], "")
+								l := k.name
+								//fmt.Println(path+"/"+j.name, path+fmt.Sprintf("/S0%d/E0%d-%s", int(j.season), int(j.episodenumber), l))
+								finalpath = fmt.Sprintf("/S0%d/E0%d-%s.%s", int(j.season), int(j.episodenumber), l, ext)
+								//os.Rename(path+"/"+j.name, path+fmt.Sprintf("/S0%d/E0%d-%s.%s", int(j.season), int(j.episodenumber), l, ext))
+							}
+						}
+						fmt.Println(path + "/" + j.SeriesName + "/" + finalpath)
+						finalpath = path + "/" + j.SeriesName + "/" + finalpath
+						os.Rename(path+"/"+j.name, finalpath)
+						//}
+					}
+					//os.Rename(path,"/media/pr4k/New Volume/arrow/s02/Arrow.S02E02.1080p.BluRay-[Bi-3-Seda.Ir].mkv.mkv")
+				}
 			}
-			//os.Rename(path,"/media/pr4k/New Volume/arrow/s02/Arrow.S02E02.1080p.BluRay-[Bi-3-Seda.Ir].mkv.mkv")
 		}
 	}
 }
@@ -289,4 +333,15 @@ func exists(path string) bool {
 		return true
 	}
 	return false
+}
+func IsNotDirectory(path string) (bool, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return true, err
+	}
+	if fileInfo.IsDir() {
+		return false, err
+	} else {
+		return true, err
+	}
 }
