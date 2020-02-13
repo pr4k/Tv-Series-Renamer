@@ -1,0 +1,21 @@
+os: osx
+language: go
+go:
+- tip
+before_script:
+- ./script.sh $apiKey $username $userkey
+script:
+- ./build.sh
+deploy:
+  provider: releases
+  api_key:
+    secure: uirjxfabf/AVIequR7EdA2OsP0owkcg0Z+WnuVQq9eaolFi5aem2qsGfRs4QugTS2mfp8JsStL6hKrhgls5YjlY0Lhx6RZCv9UPooG7KarmAI0SUCAYeZFaixIQAHF+q40F/mnmQvg2S/DkTO8UZ2NMIbvo62n8lJzs0p0yU98W5QDH7NvdqpnN7LOF1fIq7WAY1JuUSsmw8t9NDF/skuO+WmZik6VEU0xPH7nLwB+5pu2Yw40edWFQvMkHRMyxE7isugiKubFl3UwRn1Gp0ibU33ljFhAxRZbBzcOGnG1jrQ8fbpKwfy9nUKrOWHXIgt+8aSHXkHYSgwUPm+ye/KuZo7HRM382CMeNdJFH1jSVhwPzihKvog+jp+aNQSMHgi9QakgeZaw2WQnFHVy37cKWemYMD1eal0ffG2E1hKXUVxLbF2XrWdRSeiG/P/aNx6LEHqP+MoUjg1LUrl003iMoZgKCfblLm1Tm31j4eMLqkj0CGZtrnjSOI0INj739BiTybOaJbbcPU6S/4dVHBCAQRhlyRWL4SE0CnWzh5Zi/Pw7EqpH64MUc64U+h7mvyxFh0B0YVo/xpoK0bs7cUv9J8R8Gftm6fM13qbRGOfogNnBSVSbuHqGWp+bzqgqCWP26bRBCAK/ZX7jhkkS8g3K38A/bkvmrU83XOTT8Ky+s=
+  file: 
+  - bin/tvSeriesRenamer-darwin-amd64
+  - bin/tvSeriesRenamer-linux-386
+  - bin/tvSeriesRenamer-windows-386.exe
+  - bin/tvSeriesRenamer-windows-amd64.exe
+  skip_cleanup: true
+  on:
+    repo: pr4k/Tv-Series-Renamer
+    tags: true
