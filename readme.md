@@ -4,7 +4,7 @@
 ![Forks](https://img.shields.io/github/forks/pr4k/Tv-Series-Renamer)
 ![Stars](https://img.shields.io/github/stars/pr4k/Tv-Series-Renamer)
 ![License](https://img.shields.io/github/license/pr4k/Tv-Series-Renamer)
-
+![Go Report Card](https://goreportcard.com/badge/github.com/pr4k/Tv-Series-Renamer)
 ## About 
 This is a TV Series Renamer which uses TVDB Api to Rename the episodes according to Aired Name and also Organizes the collection into folders.
 It is based on go lang and was created in an attempt to learn GO
