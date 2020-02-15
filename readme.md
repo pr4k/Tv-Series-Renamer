@@ -3,7 +3,7 @@
 ![Issues](https://img.shields.io/github/issues/pr4k/Tv-Series-Renamer)
 ![Forks](https://img.shields.io/github/forks/pr4k/Tv-Series-Renamer)
 ![Stars](https://img.shields.io/github/stars/pr4k/Tv-Series-Renamer)
-![license](https://img.shields.io/github/license/pr4k/Tv-Series-Renamer)
+![License](https://img.shields.io/github/license/pr4k/Tv-Series-Renamer)
 
 ## About 
 This is a TV Series Renamer which uses TVDB Api to Rename the episodes according to Aired Name and also Organizes the collection into folders.
